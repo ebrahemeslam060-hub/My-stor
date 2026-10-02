@@ -102,7 +102,6 @@
             transform: translateY(-5px);
         }
 
-        /* تنسيقات سلايدر الصور */
         .slider-container {
             position: relative;
             width: 100%;
@@ -125,7 +124,6 @@
             opacity: 1;
         }
 
-        /* مؤشر عدد الصور */
         .slide-dots {
             position: absolute;
             bottom: 8px;
@@ -430,6 +428,7 @@
                 <div class="form-group">
                     <label>نوع الخدمة / المنتج:</label>
                     <select id="serviceType" required>
+                        <option value="data_excel">تحليل البيانات وإكسيل</option>
                         <option value="web_dev">تصميم وتطوير مواقع إلكترونية</option>
                         <option value="marketing">تسويق إلكتروني لمنتج</option>
                     </select>
@@ -644,7 +643,6 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
         }
 
-        // إيقاف مؤقتات السلايدر القديمة لمنع تداخل الأحداث عند إعادة الرندر
         function clearAllSlideIntervals() {
             slideIntervals.forEach(interval => clearInterval(interval));
             slideIntervals = [];
@@ -671,11 +669,21 @@
                     deleteBtn = `<button class="delete-product-btn" onclick="deleteProduct(${p.id})" title="حذف العنصر"><i class="fa-solid fa-trash"></i> حذف</button>`;
                 }
 
-                const isWebDev = p.serviceType === 'web_dev';
-                const serviceTag = isWebDev ? 'تصميم وتطوير مواقع' : 'تسويق إلكتروني';
-
+                let serviceTag = '';
                 let discountBadge = '';
-                if (isWebDev) {
+
+                if (p.serviceType === 'data_excel') {
+                    serviceTag = 'تحليل البيانات وإكسيل';
+                    discountBadge = `
+                        <div class="wholesale-badge">
+                            📊 <strong>عروض خصم الإكسيل والبيانات:</strong><br>
+                            - شيتين (2) = خصم 10%<br>
+                            - 3 إلى 4 شيتات = خصم 15%<br>
+                            - 5+ شيتات = خصم 20% + 🎁 لوحة تحكم (Dashboard) مجاناً!
+                        </div>
+                    `;
+                } else if (p.serviceType === 'web_dev') {
+                    serviceTag = 'تصميم وتطوير مواقع';
                     discountBadge = `
                         <div class="wholesale-badge">
                             💳 <strong>خيارات الدفع والخصم:</strong><br>
@@ -684,6 +692,7 @@
                         </div>
                     `;
                 } else {
+                    serviceTag = 'تسويق إلكتروني';
                     discountBadge = `
                         <div class="wholesale-badge">
                             🎁 <strong>عروض الخصم للجملة:</strong><br>
@@ -694,7 +703,6 @@
                     `;
                 }
 
-                // بناء السلايدر التلقائي للصور
                 let imagesHTML = '';
                 let dotsHTML = '';
                 
@@ -727,7 +735,6 @@
                 `;
                 grid.appendChild(card);
 
-                // بدء الحركة التلقائية إذا وجد أكثر من صورة واحدة
                 if (p.images.length > 1) {
                     let currentSlide = 0;
                     const interval = setInterval(() => {
@@ -748,7 +755,7 @@
                             prevDot.classList.remove('active-dot');
                             nextDot.classList.add('active-dot');
                         }
-                    }, 2500); // تغيير الصورة كل 2.5 ثانية
+                    }, 2500);
 
                     slideIntervals.push(interval);
                 }
@@ -801,8 +808,18 @@
             let baseTotal = item.price * item.qty;
             let discountPercent = 0;
             let freeUnits = 0;
+            let freeDashboard = false;
 
-            if (item.serviceType === 'web_dev') {
+            if (item.serviceType === 'data_excel') {
+                if (item.qty >= 5) {
+                    discountPercent = 20;
+                    freeDashboard = true;
+                } else if (item.qty >= 3) {
+                    discountPercent = 15;
+                } else if (item.qty === 2) {
+                    discountPercent = 10;
+                }
+            } else if (item.serviceType === 'web_dev') {
                 if (item.paymentType === 'full') {
                     discountPercent = 10;
                 }
@@ -825,7 +842,8 @@
                 discountPercent,
                 discountAmount,
                 finalTotal,
-                freeUnits
+                freeUnits,
+                freeDashboard
             };
         }
 
@@ -864,7 +882,10 @@
                         `;
                     }
 
-                    let freeUnitsNote = calc.freeUnits > 0 ? `<div style="color: green; font-size: 0.8rem; font-weight: bold;">🎁 هدية مجانية: +${calc.freeUnits} قطع مجاناً!</div>` : '';
+                    let giftNote = '';
+                    if (calc.freeUnits > 0) giftNote += `<div style="color: green; font-size: 0.8rem; font-weight: bold;">🎁 هدية مجانية: +${calc.freeUnits} قطع مجاناً!</div>`;
+                    if (calc.freeDashboard) giftNote += `<div style="color: green; font-size: 0.8rem; font-weight: bold;">🎁 هدية مجانية: تصميم لوحة تحكم (Dashboard) متكاملة!</div>`;
+
                     let discountNote = calc.discountPercent > 0 ? `<div style="color: #128C7E; font-size: 0.8rem;">خصم مُطبق: ${calc.discountPercent}% (${calc.discountAmount.toFixed(2)} ج.م)</div>` : '';
 
                     itemDiv.innerHTML = `
@@ -881,7 +902,7 @@
                         </div>
                         ${paymentControls}
                         ${discountNote}
-                        ${freeUnitsNote}
+                        ${giftNote}
                         <div style="text-align: left; font-weight: bold; font-size: 0.95rem; color: #222;">
                             المجموع: ${calc.finalTotal.toFixed(2)} ج.م
                         </div>
@@ -960,6 +981,10 @@
 
                 if (calc.freeUnits > 0) {
                     message += `   - 🎁 هدية الجملة: +${calc.freeUnits} قطع مجانية\n`;
+                }
+
+                if (calc.freeDashboard) {
+                    message += `   - 🎁 هدية العرض: لوحة تحكم (Dashboard) مجانية\n`;
                 }
 
                 message += `   - السعر النهائي: ${calc.finalTotal.toFixed(2)} ج.م\n\n`;
