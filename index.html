@@ -102,10 +102,51 @@
             transform: translateY(-5px);
         }
 
-        .product-card img {
+        /* تنسيقات سلايدر الصور */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+        }
+
+        .slider-container img {
             width: 100%;
             height: 200px;
             object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.6s ease-in-out;
+        }
+
+        .slider-container img.active-slide {
+            opacity: 1;
+        }
+
+        /* مؤشر عدد الصور */
+        .slide-dots {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 5;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+        }
+
+        .dot.active-dot {
+            background: var(--primary);
+            width: 10px;
+            height: 10px;
         }
 
         .delete-product-btn {
@@ -469,6 +510,7 @@
         let products = JSON.parse(localStorage.getItem('my_products')) || [];
         let cart = [];
         let uploadedImagesBase64 = [];
+        let slideIntervals = [];
 
         const ADMIN_USER = "admin";
         const ADMIN_PASS = "1234";
@@ -602,7 +644,14 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
         }
 
+        // إيقاف مؤقتات السلايدر القديمة لمنع تداخل الأحداث عند إعادة الرندر
+        function clearAllSlideIntervals() {
+            slideIntervals.forEach(interval => clearInterval(interval));
+            slideIntervals = [];
+        }
+
         function renderProducts() {
+            clearAllSlideIntervals();
             const grid = document.getElementById('productsGrid');
             grid.innerHTML = '';
 
@@ -645,9 +694,26 @@
                     `;
                 }
 
+                // بناء السلايدر التلقائي للصور
+                let imagesHTML = '';
+                let dotsHTML = '';
+                
+                p.images.forEach((imgSrc, index) => {
+                    const activeClass = index === 0 ? 'active-slide' : '';
+                    imagesHTML += `<img src="${imgSrc}" class="${activeClass}" id="slide_${p.id}_${index}" alt="${p.title}">`;
+                    dotsHTML += `<span class="dot ${index === 0 ? 'active-dot' : ''}" id="dot_${p.id}_${index}"></span>`;
+                });
+
+                const sliderWrapper = `
+                    <div class="slider-container">
+                        ${imagesHTML}
+                        ${p.images.length > 1 ? `<div class="slide-dots">${dotsHTML}</div>` : ''}
+                    </div>
+                `;
+
                 card.innerHTML = `
                     ${deleteBtn}
-                    <img src="${p.images[0]}" alt="${p.title}">
+                    ${sliderWrapper}
                     <div class="product-info">
                         <span class="service-type-badge">${serviceTag}</span>
                         <div class="product-title">${p.title}</div>
@@ -660,6 +726,32 @@
                     </div>
                 `;
                 grid.appendChild(card);
+
+                // بدء الحركة التلقائية إذا وجد أكثر من صورة واحدة
+                if (p.images.length > 1) {
+                    let currentSlide = 0;
+                    const interval = setInterval(() => {
+                        const prevIndex = currentSlide;
+                        currentSlide = (currentSlide + 1) % p.images.length;
+
+                        const prevImg = document.getElementById(`slide_${p.id}_${prevIndex}`);
+                        const nextImg = document.getElementById(`slide_${p.id}_${currentSlide}`);
+                        const prevDot = document.getElementById(`dot_${p.id}_${prevIndex}`);
+                        const nextDot = document.getElementById(`dot_${p.id}_${currentSlide}`);
+
+                        if (prevImg && nextImg) {
+                            prevImg.classList.remove('active-slide');
+                            nextImg.classList.add('active-slide');
+                        }
+
+                        if (prevDot && nextDot) {
+                            prevDot.classList.remove('active-dot');
+                            nextDot.classList.add('active-dot');
+                        }
+                    }, 2500); // تغيير الصورة كل 2.5 ثانية
+
+                    slideIntervals.push(interval);
+                }
             });
         }
 
@@ -677,7 +769,7 @@
                     price: product.price,
                     serviceType: product.serviceType,
                     qty: 1,
-                    paymentType: 'full' // خيار افتراضي لتطوير المواقع: دفع كامل
+                    paymentType: 'full'
                 });
             }
 
